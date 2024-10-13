@@ -1,7 +1,22 @@
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useMemo, useState } from 'react';
+import { TodoContext } from './store/todoContext';
+import { postTodo } from './apis/todo';
+import { toast } from 'react-toastify';
+
+const getUrlWithPagination = (searchParams?: Record<string, string>) => {
+  const url = new URL('https://dummyjson.com/todos');
+
+  if (searchParams) {
+    Object.entries(searchParams).forEach((entry) =>
+      url.searchParams.append(entry[0], entry[1])
+    );
+  }
+
+  return url.toString();
+};
 
 export const App = () => {
-  const [todos, setTodos] = useState(null);
+  const { todos, addBulkTodos } = useContext(TodoContext);
 
   const [isLoading, setLoading] = useState(true);
 
@@ -9,30 +24,31 @@ export const App = () => {
 
   const [searchValue, setSearchValue] = useState('');
 
-  const getTodos = () => {
-    const todos = localStorage.getItem('todos');
+  const [paginationData, setPaginationData] = useState<{
+    limit: number;
+    skip: number;
+  }>({
+    limit: 20,
+    skip: 0,
+  });
 
-    if (!todos) {
-      fetch('https://dummyjson.com/todos')
-        .then((res) => res.json())
-        .then((data) => {
-          setTodos(data);
-          localStorage.setItem('todos', JSON.stringify(data));
-          setLoading(false);
-        });
-    } else {
-      setTodos(JSON.parse(todos));
-      setLoading(false);
-    }
+  const getTodos = () => {
+    fetch(getUrlWithPagination(paginationData))
+      .then((res) => res.json())
+      .then((data) => {
+        addBulkTodos(data.todos);
+      });
+
+    setLoading(false);
   };
 
   useEffect(() => {
     // inside use effect
     getTodos();
-  }, []);
+  }, [paginationData]);
 
   const todoList =
-    todos?.todos.filter(
+    todos.filter(
       (todo) =>
         todo.todo.toLowerCase().includes(searchValue.toLowerCase()) &&
         todo.completed === onlyShowCompleted
@@ -47,7 +63,7 @@ export const App = () => {
       }}
     >
       Todo App
-      <AddTodo refreshTodo={getTodos} />
+      <AddTodo />
       <input
         type="search"
         placeholder="search for todo..."
@@ -69,6 +85,27 @@ export const App = () => {
             ? 'Showing completed todos'
             : 'Showing incomplete todos'}
         </span>
+        <button
+          onClick={() => {
+            setPaginationData((prev) => ({
+              ...prev,
+              skip: prev.skip - prev.limit,
+            }));
+          }}
+        >
+          prev
+        </button>
+        <button
+          onClick={() => {
+            console.log('clicked');
+            setPaginationData((prev) => ({
+              ...prev,
+              skip: prev.skip + prev.limit,
+            }));
+          }}
+        >
+          next
+        </button>
       </div>
       {isLoading ? (
         <span>loading todos for you....</span>
@@ -129,24 +166,26 @@ const Card = (props: {
 };
 
 const AddTodo = (props: any) => {
-  const [todoValue, setTodoValue] = useState('');
+  const { addTodo: addTodoToStore } = useContext(TodoContext);
 
-  const addTodo = () => {
-    // saving logic
-    const todos = JSON.parse(localStorage.getItem('todos'));
+  const [todoValue, setTodoValue] = useState<string>('');
 
-    todos.todos.push({
-      id: Math.random() * 10,
+  const addTodo = async () => {
+    const addedTodo = await postTodo({
       todo: todoValue,
       completed: false,
-      userId: 152,
+      // userId: 152,
     });
+    if (!addedTodo) {
+      toast.error('Error occurred. Cannot save todo.');
+      return;
+    }
 
-    localStorage.setItem('todos', JSON.stringify(todos));
+    console.log(addedTodo, 'adadasd');
+    addTodoToStore(addedTodo);
 
-    // perform cleanup
+    // clean the input
     setTodoValue('');
-    props.refreshTodo();
   };
 
   return (

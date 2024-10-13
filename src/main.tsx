@@ -6,6 +6,9 @@ import './index.css';
 
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { TodoDetails } from './TodoDetails.tsx';
+import { TodoContextProvider } from './store/todoContext.tsx';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const router = createBrowserRouter([
   {
@@ -20,6 +23,9 @@ const router = createBrowserRouter([
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <RouterProvider router={router} />
+    <ToastContainer />
+    <TodoContextProvider>
+      <RouterProvider router={router} />
+    </TodoContextProvider>
   </StrictMode>
 );
